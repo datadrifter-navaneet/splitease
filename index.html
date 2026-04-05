@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SplitTab — Fair Bill Splitting</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;1,9..40,400&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #f9f8f5;
+  --surface: #ffffff;
+  --surface2: #f3f2ef;
+  --border: rgba(0,0,0,0.10);
+  --border-md: rgba(0,0,0,0.18);
+  --text: #1a1916;
+  --text-muted: #6b6a66;
+  --text-faint: #9e9d99;
+  --accent: #378ADD;
+  --accent-light: #e6f1fb;
+  --success: #1D9E75;
+  --success-light: #e1f5ee;
+  --danger: #D85A30;
+  --warning: #BA7517;
+  --warning-light: #faeeda;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --sans: 'DM Sans', sans-serif;
+  --serif: 'DM Serif Display', serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #181816;
+    --surface: #222220;
+    --surface2: #2a2a28;
+    --border: rgba(255,255,255,0.09);
+    --border-md: rgba(255,255,255,0.16);
+    --text: #f0ede8;
+    --text-muted: #9a9994;
+    --text-faint: #5e5d5a;
+    --accent: #5ba5e8;
+    --accent-light: #1a2d3e;
+    --success: #3dc99a;
+    --success-light: #0d2e20;
+    --danger: #ef7a55;
+    --warning: #ef9f27;
+    --warning-light: #2a1f08;
+  }
+}
+
+html, body {
+  min-height: 100vh;
+  background: var(--bg);
+  font-family: var(--sans);
+  color: var(--text);
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app { max-width: 520px; margin: 0 auto; padding: 0 0 6rem; }
+
+/* Header */
+.header {
+  padding: 1.5rem 1.5rem 1rem;
+  border-bottom: 0.5px solid var(--border);
+  background: var(--surface);
+  position: sticky; top: 0; z-index: 10;
+}
+.logo { font-family: var(--serif); font-size: 26px; letter-spacing: -0.5px; color: var(--text); line-height: 1; }
+.logo span { color: var(--accent); }
+.tagline { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+/* Tabs */
+.tab-nav {
+  display: flex;
+  background: var(--surface);
+  border-bottom: 0.5px solid var(--border);
+  position: sticky; top: 77px; z-index: 9;
+}
+.tab-btn {
+  flex: 1; padding: 11px 6px;
+  border: none; background: transparent;
+  font-family: var(--sans); font-size: 13px; font-weight: 400;
+  color: var(--text-muted); cursor: pointer;
+  border-bottom: 2px solid transparent; transition: all 0.15s;
+}
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 500; }
+.badge {
+  display: inline-block; background: var(--accent); color: #fff;
+  font-size: 10px; font-weight: 500; border-radius: 10px;
+  padding: 1px 6px; margin-left: 4px; vertical-align: middle; line-height: 16px;
+}
+
+/* Panels */
+.panel { display: none; padding: 1.25rem 1.25rem 1rem; }
+.panel.active { display: block; }
+
+/* Section label */
+.section-label {
+  font-size: 10px; font-weight: 500; color: var(--text-faint);
+  text-transform: uppercase; letter-spacing: 0.09em; margin-bottom: 8px;
+}
+
+/* Card */
+.card {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+/* Inputs */
+input[type="text"], input[type="number"] {
+  width: 100%; height: 38px; padding: 0 12px;
+  border: 0.5px solid var(--border-md);
+  border-radius: var(--radius-sm);
+  background: var(--surface2); color: var(--text);
+  font-family: var(--sans); font-size: 14px; outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+input[type="text"]:focus, input[type="number"]:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(55,138,221,0.12);
+}
+input::placeholder { color: var(--text-faint); }
+
+input[type="checkbox"] {
+  width: 15px; height: 15px; margin: 0;
+  accent-color: var(--accent); cursor: pointer; flex-shrink: 0;
+}
+
+/* Buttons */
+button { font-family: var(--sans); cursor: pointer; transition: all 0.15s; }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 38px; padding: 0 16px;
+  border: 0.5px solid var(--border-md); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--text);
+  font-size: 13px; font-weight: 500; white-space: nowrap;
+}
+.btn:hover { background: var(--surface2); }
+.btn:active { transform: scale(0.98); }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn-primary:hover { opacity: 0.9; background: var(--accent); }
+.btn-block { width: 100%; border-radius: var(--radius-md); height: 44px; font-size: 14px; }
+.btn-icon { border: none; background: transparent; padding: 4px 6px; height: auto; color: var(--text-faint); font-size: 15px; line-height: 1; border-radius: 4px; }
+.btn-icon:hover { color: var(--danger); background: var(--surface2); }
+
+/* People chips */
+.people-chips {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  margin-bottom: 12px; min-height: 32px; align-items: center;
+}
+.chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px; border: 0.5px solid var(--border-md);
+  border-radius: 20px; font-size: 13px;
+  background: var(--surface2); color: var(--text);
+}
+.chip-remove {
+  font-size: 14px; line-height: 1; color: var(--text-faint);
+  cursor: pointer; padding: 0 2px; border: none; background: none;
+  display: flex; align-items: center;
+}
+.chip-remove:hover { color: var(--danger); }
+.no-people { font-size: 13px; color: var(--text-faint); font-style: italic; }
+
+/* Add row */
+.add-row { display: flex; gap: 8px; align-items: center; }
+.add-row input { flex: 1; }
+
+/* Extras */
+.extras-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.extras-field label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 5px; font-weight: 500; }
+.input-suffix { position: relative; }
+.input-suffix input { padding-right: 28px; }
+.input-suffix::after {
+  content: '%'; position: absolute; right: 10px; top: 50%;
+  transform: translateY(-50%); color: var(--text-faint); font-size: 13px; pointer-events: none;
+}
+
+/* Item cards */
+.items-list { display: flex; flex-direction: column; gap: 12px; margin-top: 1rem; }
+.item-card {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  animation: slideIn 0.2s ease;
+}
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.item-top {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px 10px;
+}
+.item-info { flex: 1; min-width: 0; }
+.item-name-text { font-size: 14px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.item-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.item-price-tag { font-size: 15px; font-weight: 500; color: var(--text); white-space: nowrap; }
+
+/* Assignment section */
+.item-assign {
+  border-top: 0.5px solid var(--border);
+  padding: 10px 14px 12px;
+  background: var(--surface2);
+}
+
+/* Mode toggle */
+.mode-toggle { display: flex; gap: 6px; margin-bottom: 10px; }
+.mode-btn {
+  flex: 1; padding: 7px 10px; border: 0.5px solid var(--border-md);
+  border-radius: var(--radius-sm); background: var(--surface);
+  font-size: 12px; color: var(--text-muted); cursor: pointer;
+  transition: all 0.15s; text-align: center; line-height: 1.3;
+}
+.mode-btn:hover { border-color: var(--accent); color: var(--accent); }
+.mode-btn.active-all  { background: var(--success-light); border-color: var(--success); color: var(--success); font-weight: 500; }
+.mode-btn.active-sel  { background: var(--accent-light);  border-color: var(--accent);  color: var(--accent);  font-weight: 500; }
+
+/* All-assigned pill */
+.all-pill {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 12px;
+  background: var(--success-light); border: 0.5px solid var(--success);
+  border-radius: var(--radius-sm); font-size: 13px; color: var(--success);
+}
+.all-pill .per { font-weight: 500; white-space: nowrap; }
+
+/* Checkbox list */
+.cb-list { display: flex; flex-direction: column; gap: 6px; }
+.cb-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 11px;
+  border-radius: var(--radius-sm);
+  border: 0.5px solid var(--border);
+  background: var(--surface); cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+  user-select: none;
+}
+.cb-row:hover { border-color: var(--border-md); }
+.cb-row.on { border-color: var(--accent); background: var(--accent-light); }
+.cb-row.on .cb-name { color: var(--accent); font-weight: 500; }
+.cb-row.on .cb-amt  { color: var(--accent); }
+.cb-name { flex: 1; font-size: 13px; color: var(--text-muted); }
+.cb-amt  { font-size: 12px; color: var(--text-faint); white-space: nowrap; }
+
+/* Warning */
+.assign-warn {
+  font-size: 12px; color: var(--warning);
+  padding: 8px 11px; background: var(--warning-light);
+  border-radius: var(--radius-sm); border: 0.5px solid var(--warning);
+  margin-top: 8px;
+}
+
+/* Empty */
+.empty-state { text-align: center; padding: 2.5rem 1rem; }
+.empty-icon  { font-size: 36px; margin-bottom: 10px; display: block; }
+.empty-state p { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+/* Summary person cards */
+.summary-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 1.25rem; }
+.summary-card {
+  background: var(--surface); border: 0.5px solid var(--border);
+  border-radius: var(--radius-md); overflow: hidden;
+}
+.sc-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 13px 16px;
+}
+.sc-name   { font-size: 15px; font-weight: 500; color: var(--text); }
+.sc-total  { font-size: 20px; font-weight: 500; color: var(--text); letter-spacing: -0.5px; }
+.sc-lines  { border-top: 0.5px solid var(--border); }
+.sc-line {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 7px 16px; font-size: 12px; color: var(--text-muted);
+  border-bottom: 0.5px solid var(--border);
+}
+.sc-line:last-child { border-bottom: none; }
+.sc-line-left { display: flex; align-items: center; gap: 6px; }
+.div-badge {
+  font-size: 10px; padding: 1px 6px;
+  background: var(--surface2); border: 0.5px solid var(--border-md);
+  border-radius: 10px; color: var(--text-faint);
+}
+.sc-line-amt { font-weight: 500; color: var(--text); }
+.sc-extras {
+  display: flex; justify-content: space-between;
+  padding: 7px 16px; font-size: 12px; color: var(--text-faint);
+  background: var(--surface2); border-top: 0.5px solid var(--border);
+}
+
+/* Totals */
+.totals-card {
+  background: var(--surface2); border: 0.5px solid var(--border);
+  border-radius: var(--radius-md); overflow: hidden; margin-bottom: 1.25rem;
+}
+.t-row {
+  display: flex; justify-content: space-between;
+  padding: 9px 16px; font-size: 13px;
+  border-bottom: 0.5px solid var(--border);
+}
+.t-row:last-child { border-bottom: none; }
+.t-row .lbl { color: var(--text-muted); }
+.t-row .val { font-weight: 500; color: var(--text); }
+.t-row.grand { background: var(--surface); }
+.t-row.grand .lbl { font-weight: 500; color: var(--text); font-size: 14px; }
+.t-row.grand .val { font-size: 15px; }
+
+/* Share */
+.share-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; }
+.sh-title { font-size: 14px; font-weight: 500; color: var(--text); margin-bottom: 3px; }
+.sh-sub   { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; }
+.sh-url {
+  background: var(--surface2); border: 0.5px solid var(--border);
+  border-radius: var(--radius-sm); padding: 9px 12px;
+  font-size: 11px; font-family: monospace; color: var(--text-muted);
+  word-break: break-all; line-height: 1.5; margin-bottom: 10px; min-height: 38px;
+}
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 2rem; left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--text); color: var(--bg);
+  font-size: 13px; padding: 9px 20px;
+  border-radius: 20px; opacity: 0; pointer-events: none;
+  transition: all 0.25s; z-index: 100; white-space: nowrap;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+@media (max-width: 400px) {
+  .panel { padding: 1rem; }
+  .header { padding: 1.25rem 1rem 0.75rem; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">Split<span>OON</span></div>
+    <div class="tagline">Fair splits. No accounts. No drama.</div>
+  </div>
+
+  <!-- Tab nav -->
+  <nav class="tab-nav">
+    <button class="tab-btn active" id="tab-btn-setup"   onclick="switchTab('setup')">Setup</button>
+    <button class="tab-btn"        id="tab-btn-items"   onclick="switchTab('items')">
+      Items <span class="badge" id="items-badge" style="display:none">0</span>
+    </button>
+    <button class="tab-btn"        id="tab-btn-summary" onclick="switchTab('summary')">Summary</button>
+  </nav>
+
+  <!-- ═══ SETUP ═══ -->
+  <div class="panel active" id="panel-setup">
+
+    <div class="section-label">Who's at the table?</div>
+    <div class="card">
+      <div class="people-chips" id="people-chips">
+        <span class="no-people">No one added yet</span>
+      </div>
+      <div class="add-row">
+        <input type="text" id="person-input" placeholder="Name (e.g. Ram)" maxlength="18"
+          onkeydown="if(event.key==='Enter')addPerson()">
+        <button class="btn btn-primary" onclick="addPerson()">+ Add</button>
+      </div>
+    </div>
+
+    <div class="section-label">Tax &amp; tip</div>
+    <div class="card">
+      <div class="extras-grid">
+        <div class="extras-field">
+          <label>Tax</label>
+          <div class="input-suffix">
+            <input type="number" id="tax-pct" value="5" min="0" max="50" step="0.5" oninput="renderSummary()">
+          </div>
+        </div>
+        <div class="extras-field">
+          <label>Tip</label>
+          <div class="input-suffix">
+            <input type="number" id="tip-pct" value="10" min="0" max="50" step="1" oninput="renderSummary()">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary btn-block" onclick="switchTab('items')">Next: Add Items &rarr;</button>
+  </div>
+
+  <!-- ═══ ITEMS ═══ -->
+  <div class="panel" id="panel-items">
+    <div class="section-label">Add bill items</div>
+    <div class="card">
+      <div class="add-row" style="flex-wrap:wrap;gap:8px;">
+        <input type="text" id="item-name-input" placeholder="Item name (e.g. Biryani)" maxlength="40"
+          style="flex:1;min-width:130px;"
+          onkeydown="if(event.key==='Enter')document.getElementById('item-price-input').focus()">
+        <input type="number" id="item-price-input" placeholder="&#8377;0.00" min="0" step="0.01"
+          style="width:110px;"
+          onkeydown="if(event.key==='Enter')addItem()">
+        <button class="btn btn-primary" onclick="addItem()">+ Add</button>
+      </div>
+    </div>
+
+    <div id="items-empty" class="empty-state">
+      <span class="empty-icon">🍽️</span>
+      <p>No items yet.<br>Add your first dish above.</p>
+    </div>
+    <div class="items-list" id="items-list"></div>
+
+    <div style="margin-top:1.5rem;">
+      <button class="btn btn-primary btn-block" onclick="switchTab('summary')">View Summary &rarr;</button>
+    </div>
+  </div>
+
+  <!-- ═══ SUMMARY ═══ -->
+  <div class="panel" id="panel-summary">
+    <div id="summary-empty" class="empty-state" style="display:none;">
+      <span class="empty-icon">📊</span>
+      <p>Add people and items first<br>to see the split here.</p>
+    </div>
+    <div id="summary-content" style="display:none;">
+      <div class="section-label">Who owes what</div>
+      <div class="summary-list" id="summary-list"></div>
+      <div class="section-label">Bill breakdown</div>
+      <div class="totals-card" id="totals-card"></div>
+      <div class="section-label">Share this split</div>
+      <div class="share-card">
+        <div class="sh-title">Send to your group</div>
+        <div class="sh-sub">Anyone with this link sees the full split — no app needed.</div>
+        <div class="sh-url" id="share-url">Calculating...</div>
+        <button class="btn btn-primary btn-block" onclick="copyLink()">Copy shareable link</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── State ── */
+let people = [];
+// item: { id, name, price, mode:'all'|'selected', assignees:string[] }
+let items  = [];
+let nextId = 1;
+
+/* ── Tabs ── */
+function switchTab(t) {
+  ['setup','items','summary'].forEach(id => {
+    document.getElementById('panel-'+id).classList.toggle('active', id===t);
+    document.getElementById('tab-btn-'+id).classList.toggle('active', id===t);
+  });
+  if (t==='summary') renderSummary();
+}
+
+/* ── People ── */
+function addPerson() {
+  const inp  = document.getElementById('person-input');
+  const name = inp.value.trim();
+  if (!name) { inp.focus(); return; }
+  if (people.map(p=>p.toLowerCase()).includes(name.toLowerCase())) {
+    showToast(name+' is already added'); inp.value=''; return;
+  }
+  people.push(name);
+  // keep 'all' items in sync
+  items.forEach(item => { if (item.mode==='all') item.assignees=[...people]; });
+  inp.value=''; inp.focus();
+  renderPeople(); renderItemCards(); renderSummary();
+}
+
+function removePerson(name) {
+  people = people.filter(p=>p!==name);
+  items.forEach(item => {
+    item.assignees = item.assignees.filter(p=>p!==name);
+    if (item.mode==='all') item.assignees=[...people];
+    else if (item.assignees.length===0 && people.length>0) item.assignees=[...people];
+  });
+  renderPeople(); renderItemCards(); renderSummary();
+}
+
+function renderPeople() {
+  const el = document.getElementById('people-chips');
+  if (!people.length) { el.innerHTML='<span class="no-people">No one added yet</span>'; return; }
+  el.innerHTML = people.map(p=>
+    `<div class="chip">${esc(p)}<button class="chip-remove" onclick="removePerson('${ea(p)}')">&times;</button></div>`
+  ).join('');
+}
+
+/* ── Items: add/remove ── */
+function addItem() {
+  const nEl=document.getElementById('item-name-input'), pEl=document.getElementById('item-price-input');
+  const name=nEl.value.trim(), price=parseFloat(pEl.value);
+  if (!name)           { showToast('Enter an item name');  nEl.focus(); return; }
+  if (!price||price<=0){ showToast('Enter a valid price'); pEl.focus(); return; }
+  items.push({ id:nextId++, name, price, mode:'all', assignees:[...people] });
+  nEl.value=''; pEl.value=''; nEl.focus();
+  renderItemCards(); updateBadge();
+}
+
+function removeItem(id) {
+  items=items.filter(i=>i.id!==id);
+  renderItemCards(); updateBadge(); renderSummary();
+}
+
+/* ── Items: mode switch ── */
+function setMode(id, mode) {
+  const item=items.find(i=>i.id===id); if(!item) return;
+  item.mode=mode;
+  if (mode==='all') item.assignees=[...people];
+  // 'selected': preserve current assignees, default to all if empty
+  else if (item.assignees.length===0) item.assignees=[...people];
+  renderItemCards(); renderSummary();
+}
+
+/* ── Items: checkbox toggle ── */
+function togglePerson(itemId, person) {
+  const item=items.find(i=>i.id===itemId); if(!item) return;
+  if (item.assignees.includes(person)) {
+    if (item.assignees.length===1) { showToast('At least one person must share this item'); return; }
+    item.assignees=item.assignees.filter(p=>p!==person);
+  } else {
+    item.assignees.push(person);
+  }
+  renderItemCards(); renderSummary();
+}
+
+/* ── Items: render ── */
+function renderItemCards() {
+  const list=document.getElementById('items-list'), empty=document.getElementById('items-empty');
+  if (!items.length) { list.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  list.innerHTML=items.map(item=>buildCard(item)).join('');
+}
+
+function buildCard(item) {
+  const n   = item.assignees.length;
+  const pp  = n>0 ? item.price/n : 0;
+  const noPpl = people.length===0;
+
+  // meta text under item name
+  let meta='';
+  if (noPpl) meta='Add people in Setup to assign';
+  else if (n===0) meta='<span style="color:var(--warning)">No one assigned yet</span>';
+  else if (n===people.length) meta=`Shared by everyone &mdash; <strong>&#8377;${pp.toFixed(2)}</strong> each`;
+  else meta=`${n} of ${people.length} people &mdash; <strong>&#8377;${pp.toFixed(2)}</strong> each`;
+
+  // assignment section (hidden if no people)
+  let assignHtml='';
+  if (!noPpl) {
+    const isAll = item.mode==='all';
+    const isSel = item.mode==='selected';
+
+    const modeBar=`
+      <div class="mode-toggle">
+        <button class="mode-btn ${isAll?'active-all':''}" onclick="setMode(${item.id},'all')">
+          ✓ Split among all (${people.length})
+        </button>
+        <button class="mode-btn ${isSel?'active-sel':''}" onclick="setMode(${item.id},'selected')">
+          ☑ Choose people
+        </button>
+      </div>`;
+
+    let body='';
+    if (isAll) {
+      body=`<div class="all-pill">
+        <span>Everyone shares equally</span>
+        <span class="per">&#8377;${pp.toFixed(2)} / person</span>
+      </div>`;
+    } else {
+      const rows=people.map(p=>{
+        const checked=item.assignees.includes(p);
+        const myAmt  =checked&&n>0?`&#8377;${pp.toFixed(2)}`:'&#8212;';
+        return `<label class="cb-row ${checked?'on':''}" onclick="togglePerson(${item.id},'${ea(p)}')">
+          <input type="checkbox" ${checked?'checked':''} onclick="event.stopPropagation();togglePerson(${item.id},'${ea(p)}')">
+          <span class="cb-name">${esc(p)}</span>
+          <span class="cb-amt">${myAmt}</span>
+        </label>`;
+      }).join('');
+      const warn=n===0?`<div class="assign-warn">&#9888; No one assigned — this item won't count toward any total.</div>`:'';
+      body=`<div class="cb-list">${rows}</div>${warn}`;
+    }
+
+    assignHtml=`<div class="item-assign">${modeBar}${body}</div>`;
+  }
+
+  return `<div class="item-card" id="item-${item.id}">
+    <div class="item-top">
+      <div class="item-info">
+        <div class="item-name-text">${esc(item.name)}</div>
+        <div class="item-meta">${meta}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+        <span class="item-price-tag">&#8377;${item.price.toFixed(2)}</span>
+        <button class="btn-icon" onclick="removeItem(${item.id})">&#10005;</button>
+      </div>
+    </div>
+    ${assignHtml}
+  </div>`;
+}
+
+function updateBadge() {
+  const b=document.getElementById('items-badge');
+  b.style.display=items.length?'inline-block':'none';
+  b.textContent=items.length;
+}
+
+/* ── Summary ── */
+function renderSummary() {
+  const panel=document.getElementById('panel-summary');
+  if (!panel.classList.contains('active')) return;
+
+  const tax      = parseFloat(document.getElementById('tax-pct').value)||0;
+  const tip      = parseFloat(document.getElementById('tip-pct').value)||0;
+  const emptyEl  = document.getElementById('summary-empty');
+  const contentEl= document.getElementById('summary-content');
+
+  if (!people.length||!items.length) {
+    emptyEl.style.display='block'; contentEl.style.display='none'; return;
+  }
+  emptyEl.style.display='none'; contentEl.style.display='block';
+
+  // Step 1: calculate each person's raw subtotal from assigned items
+  const subtotal=items.reduce((s,i)=>s+i.price,0);
+  const taxAmt  =subtotal*tax/100;
+  const tipAmt  =subtotal*tip/100;
+  const total   =subtotal+taxAmt+tipAmt;
+
+  const totals={};
+  people.forEach(p=>totals[p]={sub:0,lines:[]});
+
+  items.forEach(item=>{
+    const n=item.assignees.length; if(!n) return;
+    const share=item.price/n;
+    item.assignees.forEach(p=>{
+      if(totals[p]===undefined) return;
+      totals[p].sub+=share;
+      totals[p].lines.push({name:item.name,fullPrice:item.price,splitBy:n,myAmt:share});
+    });
+  });
+
+  // Step 2: distribute tax+tip proportionally by each person's subtotal share
+  const listEl=document.getElementById('summary-list');
+  listEl.innerHTML=people.map(p=>{
+    const d=totals[p];
+    const frac  =subtotal>0?d.sub/subtotal:0;
+    const myTax =taxAmt*frac;
+    const myTip =tipAmt*frac;
+    const myTot =d.sub+myTax+myTip;
+
+    const lineRows=d.lines.map(l=>`
+      <div class="sc-line">
+        <div class="sc-line-left">
+          <span>${esc(l.name)}</span>
+          ${l.splitBy>1?`<span class="div-badge">shared &divide;${l.splitBy}</span>`:''}
+        </div>
+        <span class="sc-line-amt">&#8377;${l.myAmt.toFixed(2)}</span>
+      </div>`).join('');
+
+    const extrasRow=(tax>0||tip>0)&&d.sub>0?`
+      <div class="sc-extras">
+        <span>Tax (${tax}%) + tip (${tip}%) — proportional share</span>
+        <span>&#8377;${(myTax+myTip).toFixed(2)}</span>
+      </div>`:'';
+
+    const empty=d.lines.length===0
+      ?`<div class="sc-line"><span style="color:var(--text-faint);font-style:italic">Nothing assigned</span></div>`
+      :'';
+
+    return `<div class="summary-card">
+      <div class="sc-header">
+        <span class="sc-name">${esc(p)}</span>
+        <span class="sc-total">&#8377;${myTot.toFixed(2)}</span>
+      </div>
+      <div class="sc-lines">${empty}${lineRows}${extrasRow}</div>
+    </div>`;
+  }).join('');
+
+  // Totals card
+  document.getElementById('totals-card').innerHTML=`
+    <div class="t-row"><span class="lbl">Subtotal</span><span class="val">&#8377;${subtotal.toFixed(2)}</span></div>
+    <div class="t-row"><span class="lbl">Tax (${tax}%)</span><span class="val">&#8377;${taxAmt.toFixed(2)}</span></div>
+    <div class="t-row"><span class="lbl">Tip (${tip}%)</span><span class="val">&#8377;${tipAmt.toFixed(2)}</span></div>
+    <div class="t-row grand"><span class="lbl">Total</span><span class="val">&#8377;${total.toFixed(2)}</span></div>`;
+
+  buildShareLink(tax,tip);
+}
+
+/* ── Share link ── */
+function buildShareLink(tax,tip) {
+  const state={people,items:items.map(i=>({id:i.id,name:i.name,price:i.price,mode:i.mode,assignees:i.assignees})),tax,tip};
+  try {
+    const enc=btoa(unescape(encodeURIComponent(JSON.stringify(state))));
+    document.getElementById('share-url').textContent=location.origin+location.pathname+'#split='+enc;
+  } catch(e){ document.getElementById('share-url').textContent='Could not generate link'; }
+}
+
+function copyLink() {
+  const url=document.getElementById('share-url').textContent;
+  if(!url||url==='Calculating...') return;
+  navigator.clipboard.writeText(url)
+    .then(()=>showToast('Link copied! Share it in the group chat.'))
+    .catch(()=>{
+      const ta=document.createElement('textarea');
+      ta.value=url; ta.style.cssText='position:fixed;opacity:0';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta);
+      showToast('Link copied!');
+    });
+}
+
+/* ── Load from hash ── */
+function loadFromHash() {
+  if(!location.hash.startsWith('#split=')) return;
+  try {
+    const state=JSON.parse(decodeURIComponent(escape(atob(location.hash.slice(7)))));
+    people=state.people||[];
+    items=(state.items||[]).map(i=>({
+      id:i.id||nextId++, name:i.name, price:i.price,
+      mode:i.mode||'all', assignees:i.assignees||[]
+    }));
+    nextId=Math.max(0,...items.map(i=>i.id))+1;
+    document.getElementById('tax-pct').value=state.tax??5;
+    document.getElementById('tip-pct').value=state.tip??10;
+    renderPeople(); renderItemCards(); updateBadge();
+    switchTab('summary'); showToast('Bill loaded from shared link');
+  } catch(e){ console.warn('Could not parse share link',e); }
+}
+
+/* ── Helpers ── */
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function ea(s) { return String(s).replace(/'/g,"\\'"); }
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2600);
+}
+
+/* ── Init ── */
+renderPeople();
+renderItemCards();
+loadFromHash();
+</script>
+</body>
+</html>
