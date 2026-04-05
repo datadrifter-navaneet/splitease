@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SplitTab — Fair Bill Splitting</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;1,9..40,400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f9f8f5;
+    --surface: #ffffff;
+    --surface2: #f3f2ef;
+    --border: rgba(0,0,0,0.10);
+    --border-md: rgba(0,0,0,0.18);
+    --text: #1a1916;
+    --text-muted: #6b6a66;
+    --text-faint: #9e9d99;
+    --accent: #378ADD;
+    --accent-bg: #e6f1fb;
+    --success: #1D9E75;
+    --danger: #D85A30;
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --sans: 'DM Sans', sans-serif;
+    --serif: 'DM Serif Display', serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #181816;
+      --surface: #222220;
+      --surface2: #2a2a28;
+      --border: rgba(255,255,255,0.09);
+      --border-md: rgba(255,255,255,0.16);
+      --text: #f0ede8;
+      --text-muted: #9a9994;
+      --text-faint: #5e5d5a;
+      --accent: #5ba5e8;
+      --accent-bg: #1a2d3e;
+      --success: #3dc99a;
+      --danger: #ef7a55;
+    }
+  }
+
+  html, body {
+    min-height: 100vh;
+    background: var(--bg);
+    font-family: var(--sans);
+    color: var(--text);
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Layout ── */
+  .app {
+    max-width: 520px;
+    margin: 0 auto;
+    padding: 0 0 6rem;
+  }
+
+  /* ── Header ── */
+  .header {
+    padding: 2rem 1.5rem 1.25rem;
+    border-bottom: 0.5px solid var(--border);
+    background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .logo {
+    font-family: var(--serif);
+    font-size: 28px;
+    letter-spacing: -0.5px;
+    color: var(--text);
+    line-height: 1;
+  }
+  .logo span { color: var(--accent); }
+  .tagline {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 3px;
+  }
+
+  /* ── Tabs ── */
+  .tab-nav {
+    display: flex;
+    gap: 0;
+    background: var(--surface);
+    border-bottom: 0.5px solid var(--border);
+    position: sticky;
+    top: 85px;
+    z-index: 9;
+  }
+  .tab-btn {
+    flex: 1;
+    padding: 12px 8px;
+    border: none;
+    background: transparent;
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    font-weight: 500;
+  }
+  .tab-btn .badge {
+    display: inline-block;
+    background: var(--accent);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 500;
+    border-radius: 10px;
+    padding: 1px 6px;
+    margin-left: 5px;
+    vertical-align: middle;
+    line-height: 16px;
+  }
+
+  /* ── Panels ── */
+  .panel { display: none; padding: 1.5rem; }
+  .panel.active { display: block; }
+
+  /* ── Section labels ── */
+  .section-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 10px;
+  }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+  }
+
+  /* ── Inputs ── */
+  input[type="text"],
+  input[type="number"] {
+    width: 100%;
+    height: 38px;
+    padding: 0 12px;
+    border: 0.5px solid var(--border-md);
+    border-radius: var(--radius-sm);
+    background: var(--surface2);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  input[type="text"]:focus,
+  input[type="number"]:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(55,138,221,0.12);
+  }
+  input::placeholder { color: var(--text-faint); }
+
+  /* ── Buttons ── */
+  button {
+    font-family: var(--sans);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 38px;
+    padding: 0 16px;
+    border: 0.5px solid var(--border-md);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .btn:hover { background: var(--surface2); }
+  .btn:active { transform: scale(0.98); }
+  .btn-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .btn-primary:hover { opacity: 0.9; background: var(--accent); }
+  .btn-block { width: 100%; border-radius: var(--radius-md); height: 44px; font-size: 14px; }
+  .btn-danger { color: var(--danger); border-color: transparent; background: transparent; padding: 0; height: auto; }
+  .btn-danger:hover { opacity: 0.7; }
+
+  /* ── People chips ── */
+  .people-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+    min-height: 34px;
+    align-items: center;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border: 0.5px solid var(--border-md);
+    border-radius: 20px;
+    font-size: 13px;
+    background: var(--surface2);
+    color: var(--text);
+  }
+  .chip .remove-person {
+    font-size: 15px;
+    line-height: 1;
+    color: var(--text-faint);
+    cursor: pointer;
+    padding: 0 2px;
+    border: none;
+    background: none;
+    display: flex;
+    align-items: center;
+  }
+  .chip .remove-person:hover { color: var(--danger); }
+  .no-people {
+    font-size: 13px;
+    color: var(--text-faint);
+    font-style: italic;
+  }
+
+  /* ── Add row ── */
+  .add-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .add-row input { flex: 1; }
+
+  /* ── Extras (tax/tip) ── */
+  .extras-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .extras-field label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 5px;
+    font-weight: 500;
+  }
+  .input-suffix {
+    position: relative;
+  }
+  .input-suffix input { padding-right: 28px; }
+  .input-suffix::after {
+    content: '%';
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-faint);
+    font-size: 13px;
+    pointer-events: none;
+  }
+
+  /* ── Items list ── */
+  .items-list { display: flex; flex-direction: column; gap: 10px; margin-top: 1rem; }
+  .item-card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    animation: slideIn 0.2s ease;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .item-name-text { font-size: 14px; font-weight: 500; color: var(--text); }
+  .item-price-text { font-size: 14px; font-weight: 500; color: var(--text); white-space: nowrap; }
+  .item-actions { display: flex; align-items: center; gap: 10px; }
+  .item-share { font-size: 12px; color: var(--text-faint); }
+
+  .assignees-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .assign-btn {
+    padding: 4px 12px;
+    border: 0.5px solid var(--border-md);
+    border-radius: 14px;
+    font-size: 12px;
+    background: var(--surface2);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .assign-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .assign-btn.on {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    font-weight: 500;
+  }
+  .no-people-hint {
+    font-size: 12px;
+    color: var(--text-faint);
+    font-style: italic;
+  }
+
+  /* ── Empty state ── */
+  .empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+  }
+  .empty-icon {
+    font-size: 40px;
+    margin-bottom: 12px;
+    display: block;
+  }
+  .empty-state p {
+    font-size: 14px;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+
+  /* ── Summary ── */
+  .summary-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 1.25rem; }
+  .summary-person-card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 14px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+  .sp-left {}
+  .sp-name { font-size: 15px; font-weight: 500; color: var(--text); }
+  .sp-breakdown { font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4; }
+  .sp-amount { font-size: 22px; font-weight: 500; color: var(--text); letter-spacing: -0.5px; white-space: nowrap; }
+
+  .totals-card {
+    background: var(--surface2);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    margin-bottom: 1.25rem;
+  }
+  .totals-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    font-size: 13px;
+    border-bottom: 0.5px solid var(--border);
+  }
+  .totals-row:last-child { border-bottom: none; }
+  .totals-row .label { color: var(--text-muted); }
+  .totals-row .value { color: var(--text); font-weight: 500; }
+  .totals-row.grand { background: var(--surface); }
+  .totals-row.grand .label { font-weight: 500; color: var(--text); font-size: 14px; }
+  .totals-row.grand .value { font-size: 16px; }
+
+  /* ── Share card ── */
+  .share-card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+  }
+  .share-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  .share-subtitle {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+  }
+  .share-url-box {
+    background: var(--surface2);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    font-size: 11px;
+    font-family: monospace;
+    color: var(--text-muted);
+    word-break: break-all;
+    line-height: 1.5;
+    margin-bottom: 10px;
+    min-height: 38px;
+  }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--text);
+    color: var(--bg);
+    font-size: 13px;
+    padding: 10px 20px;
+    border-radius: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.25s;
+    z-index: 100;
+    white-space: nowrap;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* ── Divider ── */
+  .divider { border: none; border-top: 0.5px solid var(--border); margin: 1.25rem 0; }
+
+  /* ── Responsive ── */
+  @media (max-width: 400px) {
+    .panel { padding: 1rem; }
+    .header { padding: 1.25rem 1rem 1rem; }
+    .logo { font-size: 24px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">Split<span>Tab</span></div>
+    <div class="tagline">Fair splits. No accounts. No drama.</div>
+  </div>
+
+  <!-- Tab Nav -->
+  <nav class="tab-nav">
+    <button class="tab-btn active" id="tab-btn-setup" onclick="switchTab('setup')">
+      Setup
+    </button>
+    <button class="tab-btn" id="tab-btn-items" onclick="switchTab('items')">
+      Items <span class="badge" id="items-badge" style="display:none">0</span>
+    </button>
+    <button class="tab-btn" id="tab-btn-summary" onclick="switchTab('summary')">
+      Summary
+    </button>
+  </nav>
+
+  <!-- ══ SETUP PANEL ══ -->
+  <div class="panel active" id="panel-setup">
+
+    <div class="section-label">Who's at the table?</div>
+    <div class="card">
+      <div class="people-chips" id="people-chips">
+        <span class="no-people">No one added yet</span>
+      </div>
+      <div class="add-row">
+        <input type="text" id="person-input" placeholder="Name (e.g. Priya)" maxlength="16"
+          onkeydown="if(event.key==='Enter')addPerson()">
+        <button class="btn btn-primary" onclick="addPerson()">+ Add</button>
+      </div>
+    </div>
+
+    <div class="section-label">Tax &amp; tip</div>
+    <div class="card">
+      <div class="extras-grid">
+        <div class="extras-field">
+          <label>Tax</label>
+          <div class="input-suffix">
+            <input type="number" id="tax-pct" value="5" min="0" max="50" step="0.5" oninput="renderSummary()">
+          </div>
+        </div>
+        <div class="extras-field">
+          <label>Tip</label>
+          <div class="input-suffix">
+            <input type="number" id="tip-pct" value="10" min="0" max="50" step="1" oninput="renderSummary()">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary btn-block" onclick="switchTab('items')">
+      Next: Add Items &rarr;
+    </button>
+
+  </div>
+
+  <!-- ══ ITEMS PANEL ══ -->
+  <div class="panel" id="panel-items">
+
+    <div class="section-label">Add bill items</div>
+    <div class="card">
+      <div class="add-row" style="flex-wrap:wrap; gap:8px;">
+        <input type="text" id="item-name-input" placeholder="Item name (e.g. Biryani)" maxlength="40"
+          style="flex:1; min-width:140px;"
+          onkeydown="if(event.key==='Enter')document.getElementById('item-price-input').focus()">
+        <input type="number" id="item-price-input" placeholder="&#8377;0.00" min="0" step="0.01"
+          style="width:110px;"
+          onkeydown="if(event.key==='Enter')addItem()">
+        <button class="btn btn-primary" onclick="addItem()" style="white-space:nowrap;">+ Add</button>
+      </div>
+    </div>
+
+    <div id="items-container">
+      <div class="empty-state" id="items-empty">
+        <span class="empty-icon">🍽️</span>
+        <p>No items yet.<br>Add your first dish above.</p>
+      </div>
+      <div class="items-list" id="items-list"></div>
+    </div>
+
+    <div style="margin-top:1.5rem;">
+      <button class="btn btn-primary btn-block" onclick="switchTab('summary')">
+        View Summary &rarr;
+      </button>
+    </div>
+
+  </div>
+
+  <!-- ══ SUMMARY PANEL ══ -->
+  <div class="panel" id="panel-summary">
+
+    <div id="summary-empty" class="empty-state" style="display:none;">
+      <span class="empty-icon">📊</span>
+      <p>Add people and items first<br>to see the split here.</p>
+    </div>
+
+    <div id="summary-content" style="display:none;">
+      <div class="section-label">Who owes what</div>
+      <div class="summary-list" id="summary-list"></div>
+
+      <div class="section-label">Bill breakdown</div>
+      <div class="totals-card" id="totals-card"></div>
+
+      <div class="section-label">Share this split</div>
+      <div class="share-card">
+        <div class="share-title">Send to your group</div>
+        <div class="share-subtitle">Anyone with this link sees the full split instantly — no app needed.</div>
+        <div class="share-url-box" id="share-url">Calculating link...</div>
+        <button class="btn btn-primary btn-block" onclick="copyLink()">
+          Copy shareable link
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── State ── */
+let people = [];
+let items  = [];
+let nextId = 1;
+
+/* ── Tab switching ── */
+function switchTab(tab) {
+  ['setup','items','summary'].forEach(t => {
+    document.getElementById('panel-' + t).classList.toggle('active', t === tab);
+    document.getElementById('tab-btn-' + t).classList.toggle('active', t === tab);
+  });
+  if (tab === 'summary') renderSummary();
+  updateBadge();
+}
+
+/* ── People ── */
+function addPerson() {
+  const inp  = document.getElementById('person-input');
+  const name = inp.value.trim();
+  if (!name) { inp.focus(); return; }
+  if (people.map(p => p.toLowerCase()).includes(name.toLowerCase())) {
+    showToast(name + ' is already added');
+    inp.value = '';
+    return;
+  }
+  people.push(name);
+  inp.value = '';
+  inp.focus();
+  renderPeople();
+  renderItemCards();
+  renderSummary();
+}
+
+function removePerson(name) {
+  people = people.filter(p => p !== name);
+  items.forEach(item => {
+    item.assignees = item.assignees.filter(p => p !== name);
+    if (item.assignees.length === 0 && people.length > 0) {
+      item.assignees = [...people];
+    }
+  });
+  renderPeople();
+  renderItemCards();
+  renderSummary();
+}
+
+function renderPeople() {
+  const el = document.getElementById('people-chips');
+  if (people.length === 0) {
+    el.innerHTML = '<span class="no-people">No one added yet</span>';
+    return;
+  }
+  el.innerHTML = people.map(p =>
+    `<div class="chip">
+      ${escHtml(p)}
+      <button class="remove-person" title="Remove ${escHtml(p)}" onclick="removePerson('${escAttr(p)}')">&times;</button>
+    </div>`
+  ).join('');
+}
+
+/* ── Items ── */
+function addItem() {
+  const nameEl  = document.getElementById('item-name-input');
+  const priceEl = document.getElementById('item-price-input');
+  const name    = nameEl.value.trim();
+  const price   = parseFloat(priceEl.value);
+
+  if (!name)           { showToast('Enter an item name'); nameEl.focus();  return; }
+  if (!price || price <= 0) { showToast('Enter a valid price'); priceEl.focus(); return; }
+
+  items.push({
+    id:        nextId++,
+    name:      name,
+    price:     price,
+    assignees: [...people]
+  });
+
+  nameEl.value  = '';
+  priceEl.value = '';
+  nameEl.focus();
+
+  renderItemCards();
+  updateBadge();
+}
+
+function removeItem(id) {
+  items = items.filter(i => i.id !== id);
+  renderItemCards();
+  updateBadge();
+  renderSummary();
+}
+
+function toggleAssign(itemId, person) {
+  const item = items.find(i => i.id === itemId);
+  if (!item) return;
+  if (item.assignees.includes(person)) {
+    if (item.assignees.length === 1) { showToast('At least one person must share this item'); return; }
+    item.assignees = item.assignees.filter(p => p !== person);
+  } else {
+    item.assignees.push(person);
+  }
+  renderItemCards();
+  renderSummary();
+}
+
+function renderItemCards() {
+  const list  = document.getElementById('items-list');
+  const empty = document.getElementById('items-empty');
+
+  if (items.length === 0) {
+    list.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  list.innerHTML = items.map(item => {
+    const perPerson = item.assignees.length > 0
+      ? (item.price / item.assignees.length).toFixed(2)
+      : item.price.toFixed(2);
+
+    const assigneeButtons = people.length === 0
+      ? '<span class="no-people-hint">Add people in Setup to assign</span>'
+      : people.map(p =>
+          `<button class="assign-btn ${item.assignees.includes(p) ? 'on' : ''}"
+            onclick="toggleAssign(${item.id}, '${escAttr(p)}')">${escHtml(p)}</button>`
+        ).join('');
+
+    return `
+      <div class="item-card" id="item-${item.id}">
+        <div class="item-header">
+          <div>
+            <div class="item-name-text">${escHtml(item.name)}</div>
+          </div>
+          <div class="item-actions">
+            ${item.assignees.length > 1
+              ? `<span class="item-share">&#8377;${perPerson}/person</span>`
+              : ''}
+            <span class="item-price-text">&#8377;${item.price.toFixed(2)}</span>
+            <button class="btn btn-danger" title="Remove item" onclick="removeItem(${item.id})">&#10005;</button>
+          </div>
+        </div>
+        <div class="assignees-row">${assigneeButtons}</div>
+      </div>`;
+  }).join('');
+}
+
+function updateBadge() {
+  const badge = document.getElementById('items-badge');
+  if (items.length === 0) {
+    badge.style.display = 'none';
+  } else {
+    badge.style.display = 'inline-block';
+    badge.textContent   = items.length;
+  }
+}
+
+/* ── Summary ── */
+function renderSummary() {
+  const panel = document.getElementById('panel-summary');
+  if (!panel.classList.contains('active')) return;
+
+  const tax      = parseFloat(document.getElementById('tax-pct').value) || 0;
+  const tip      = parseFloat(document.getElementById('tip-pct').value) || 0;
+  const emptyEl  = document.getElementById('summary-empty');
+  const contentEl= document.getElementById('summary-content');
+
+  if (people.length === 0 || items.length === 0) {
+    emptyEl.style.display   = 'block';
+    contentEl.style.display = 'none';
+    return;
+  }
+  emptyEl.style.display   = 'none';
+  contentEl.style.display = 'block';
+
+  /* Calculate shares */
+  const subtotal = items.reduce((s, i) => s + i.price, 0);
+  const taxAmt   = subtotal * tax  / 100;
+  const tipAmt   = subtotal * tip  / 100;
+  const total    = subtotal + taxAmt + tipAmt;
+  const mult     = total / subtotal;
+
+  const totals = {};
+  people.forEach(p => totals[p] = { base: 0, itemNames: [] });
+
+  items.forEach(item => {
+    if (item.assignees.length === 0) return;
+    const share = item.price / item.assignees.length;
+    item.assignees.forEach(p => {
+      if (totals[p] !== undefined) {
+        totals[p].base += share;
+        totals[p].itemNames.push(item.name);
+      }
+    });
+  });
+
+  /* Person cards */
+  const listEl = document.getElementById('summary-list');
+  listEl.innerHTML = people.map(p => {
+    const base  = totals[p].base;
+    const final = base * mult;
+    const names = totals[p].itemNames;
+    return `
+      <div class="summary-person-card">
+        <div class="sp-left">
+          <div class="sp-name">${escHtml(p)}</div>
+          <div class="sp-breakdown">
+            ${names.length > 0 ? escHtml(names.join(', ')) : 'Nothing assigned'}
+            ${names.length > 0 ? ' + tax &amp; tip' : ''}
+          </div>
+        </div>
+        <div class="sp-amount">&#8377;${final.toFixed(2)}</div>
+      </div>`;
+  }).join('');
+
+  /* Totals breakdown */
+  document.getElementById('totals-card').innerHTML = `
+    <div class="totals-row">
+      <span class="label">Subtotal</span>
+      <span class="value">&#8377;${subtotal.toFixed(2)}</span>
+    </div>
+    <div class="totals-row">
+      <span class="label">Tax (${tax}%)</span>
+      <span class="value">&#8377;${taxAmt.toFixed(2)}</span>
+    </div>
+    <div class="totals-row">
+      <span class="label">Tip (${tip}%)</span>
+      <span class="value">&#8377;${tipAmt.toFixed(2)}</span>
+    </div>
+    <div class="totals-row grand">
+      <span class="label">Total</span>
+      <span class="value">&#8377;${total.toFixed(2)}</span>
+    </div>`;
+
+  /* Share link */
+  buildShareLink(tax, tip);
+}
+
+/* ── Share link (URL hash encoding, no backend) ── */
+function buildShareLink(tax, tip) {
+  const state = {
+    people: people,
+    items:  items.map(i => ({ id: i.id, name: i.name, price: i.price, assignees: i.assignees })),
+    tax:    tax,
+    tip:    tip
+  };
+  try {
+    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(state))));
+    const url     = location.origin + location.pathname + '#split=' + encoded;
+    document.getElementById('share-url').textContent = url;
+  } catch(e) {
+    document.getElementById('share-url').textContent = 'Could not generate link';
+  }
+}
+
+function copyLink() {
+  const url = document.getElementById('share-url').textContent;
+  if (!url || url === 'Calculating link...') return;
+  navigator.clipboard.writeText(url).then(() => {
+    showToast('Link copied! Share it with the group.');
+  }).catch(() => {
+    /* Fallback for older browsers */
+    const ta = document.createElement('textarea');
+    ta.value = url;
+    ta.style.position = 'fixed';
+    ta.style.opacity  = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('Link copied!');
+  });
+}
+
+/* ── Load from hash ── */
+function loadFromHash() {
+  const hash = location.hash;
+  if (!hash || !hash.startsWith('#split=')) return;
+  try {
+    const encoded = hash.slice('#split='.length);
+    const state   = JSON.parse(decodeURIComponent(escape(atob(encoded))));
+
+    people = state.people || [];
+    items  = (state.items  || []).map(i => ({
+      id:        i.id   || nextId++,
+      name:      i.name,
+      price:     i.price,
+      assignees: i.assignees || []
+    }));
+    nextId = Math.max(...items.map(i => i.id), 0) + 1;
+
+    document.getElementById('tax-pct').value = state.tax ?? 5;
+    document.getElementById('tip-pct').value = state.tip ?? 10;
+
+    renderPeople();
+    renderItemCards();
+    updateBadge();
+    switchTab('summary');
+    showToast('Bill loaded from shared link');
+  } catch(e) {
+    console.warn('Could not parse share link', e);
+  }
+}
+
+/* ── Helpers ── */
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+function escAttr(str) {
+  return String(str).replace(/'/g, "\\'");
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+/* ── Init ── */
+renderPeople();
+renderItemCards();
+loadFromHash();
+</script>
+</body>
+</html>
